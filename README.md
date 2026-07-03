@@ -6,7 +6,7 @@
 
 ## 预览
 
-访问 [https://tianxiang422.gitee.io/hutianxiang-resume](https://tianxiang422.gitee.io/hutianxiang-resume) 查看。
+访问 [https://jinlaba.github.io/hutianxiang-resume/](https://jinlaba.github.io/hutianxiang-resume/) 查看。
 
 ## 部署
 
