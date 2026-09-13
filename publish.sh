@@ -11,7 +11,6 @@ set -euo pipefail
 
 REPO="/home/hu/resume-site"
 PY="/home/hu/.workbuddy/binaries/python/versions/3.13.12/bin/python3"
-REMOTE="https://github.com/jinlaba/hutianxiang-resume.git"
 
 # 取 token：优先环境变量，其次 ~/.gh-token
 HOME_DIR="${HOME:-/home/hu}"
@@ -42,7 +41,9 @@ else
 fi
 
 echo "[3/4] 推送"
-git -c credential.helper= push "$REMOTE" main
+# token 只出现在本次命令的 URL 里；credential.helper= 关闭凭据缓存，不落盘、不进 .git/config
+PUSH_URL="https://x-access-token:${GH_TOKEN}@github.com/jinlaba/hutianxiang-resume.git"
+git -c credential.helper= -c http.extraheader= push "$PUSH_URL" main
 
 echo "[4/4] 完成"
 echo "      线上地址： https://jinlaba.github.io/hutianxiang-resume/"
