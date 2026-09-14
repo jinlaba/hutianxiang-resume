@@ -43,7 +43,26 @@ fi
 echo "[3/4] 推送"
 # token 只出现在本次命令的 URL 里；credential.helper= 关闭凭据缓存，不落盘、不进 .git/config
 PUSH_URL="https://x-access-token:${GH_TOKEN}@github.com/jinlaba/hutianxiang-resume.git"
-git -c credential.helper= -c http.extraheader= push "$PUSH_URL" main
+
+# 网络（2026-09-14 实测）：本机 shell 里的 http_proxy/https_proxy（45301 或 45777）都是失效的，
+# 真正能连 GitHub 的是 Clash 混合端口 7897。探测到就用它，探测不到则直连。
+GIT_PROXY_OPTS=()
+if timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/7897" 2>/dev/null; then
+  GIT_PROXY_OPTS=(-c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897)
+  echo "      代理：http://127.0.0.1:7897"
+else
+  echo "      代理：未探测到 7897，直连"
+fi
+
+if ! env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+       git -c credential.helper= -c http.extraheader= "${GIT_PROXY_OPTS[@]}" \
+       push "$PUSH_URL" main; then
+  echo "[x] 推送失败（commit 已在本地，不会丢）。手动补推："
+  echo "    cd $REPO && env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \\"
+  echo "      git -c credential.helper= -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 \\"
+  echo "      push \"https://x-access-token:\$GH_TOKEN@github.com/jinlaba/hutianxiang-resume.git\" main"
+  exit 1
+fi
 
 echo "[4/4] 完成"
 echo "      线上地址： https://jinlaba.github.io/hutianxiang-resume/"
