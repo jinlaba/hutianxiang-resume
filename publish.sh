@@ -37,7 +37,7 @@ if git diff --cached --quiet; then
   echo "      (内容无变化，跳过提交)"
 else
   git -c user.name="jinlaba" -c user.email="894102027@qq.com" \
-      commit -m "update resume: 凭证口径6万条 + 内部往来核对 + AI实践项目 + 首屏作品集入口"
+      commit -m "update resume: 个人优势 AI 段改为 Agent+RAG 个人项目管理；删除 AI 实践项目章节；章节重编号"
 fi
 
 echo "[3/4] 推送"
