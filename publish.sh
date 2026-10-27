@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 一键发布在线简历
-#   1. 从 Obsidian 的 06 源文件重新生成 index.html
+#   1. 用 gen_online.py 生成 index.html（双 tab：财务 BP 版 / 财务经理版）
+#      —— 占位停用：gen_resume.py 是旧版「整篇渲染内部事实库」，会公开内部标注，不要再接回来
 #   2. 提交并推送到 GitHub Pages（token 只在本次命令内使用，不写入磁盘、不进仓库）
 #
 # 用法（二选一）：
@@ -21,23 +22,23 @@ if [ -z "${GH_TOKEN:-}" ]; then
   echo "[x] 缺少 token。请用 GH_TOKEN=xxx bash publish.sh，或把 token 写入 ~/.gh-token"
   exit 1
 fi
-if [ "${#GH_TOKEN}" -ne 40 ]; then
-  echo "[x] token 长度是 ${#GH_TOKEN} 位，GitHub classic PAT 应为 40 位 —— 大概率复制不全，请重新复制。"
+if [ "${#GH_TOKEN}" -lt 40 ]; then
+  echo "[x] token 长度是 ${#GH_TOKEN} 位，GitHub PAT 至少 40 位 —— 大概率复制不全，请重新复制。"
   exit 1
 fi
 
 cd "$REPO"
 
 echo "[1/4] 生成 index.html"
-"$PY" gen_resume.py
+"$PY" gen_online.py
 
 echo "[2/4] 提交"
-git add index.html gen_resume.py publish.sh 2>/dev/null || git add index.html
+git add index.html gen_online.py publish.sh 2>/dev/null || git add index.html
 if git diff --cached --quiet; then
   echo "      (内容无变化，跳过提交)"
 else
   git -c user.name="jinlaba" -c user.email="894102027@qq.com" \
-      commit -m "update resume: 个人优势 AI 段改为 Agent+RAG 个人项目管理；删除 AI 实践项目章节；章节重编号"
+      commit -m "update resume: 在线简历改为双版本（财务BP版 / 财务经理版），手机端优先；去掉全部内部标注"
 fi
 
 echo "[3/4] 推送"

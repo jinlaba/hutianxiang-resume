@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-简历生成脚本（Linux 版）
-从 Obsidian 的对外简历源 Markdown 生成 GitHub Pages 用的 index.html（蓝金主题）。
+简历生成脚本（Linux 版）—— 【已停用，勿用于发布】
 
-用法：
-    python3 gen_resume.py            # 生成 index.html
-    python3 gen_resume.py --stdout   # 只打印，不写文件（用于比对）
+⚠️ 本脚本会把 Obsidian 内部事实库整篇渲染成网页，其中含「派驻 / 仅阅读 / 参与角色 /
+   能力图谱 / 待核对」等内部标注，一旦上网即等于公开底稿。
+
+    线上发布请用 gen_online.py（双 tab：财务 BP 版 / 财务经理版），见 publish.sh。
+
+用法（仅本地比对）：
+    python3 gen_resume.py --stdout   # 只打印，不写文件
 
 样式（CSS）与结构复刻自 2026-09-03 线上版本，未做视觉改动。
 """
@@ -16,9 +19,21 @@ import pathlib
 import re
 import sys
 
-SRC_MD = pathlib.Path(
-    "/media/hu/本地磁盘1/obsidian/胡多多/1projects/求职/06-个人专属画像-对外简历源.md"
-)
+def _resolve_src():
+    """定位唯一可信源。求职目录 2026-10-25 已重构为「三层+层级编号」，
+    且外置盘挂载点换过多次 —— 所以不硬记路径，先试候选、再按文件名兜底。"""
+    cands = [
+        pathlib.Path("/home/hu/obsidian/胡多多/1projects/求职/1-我的底稿/1.1-个人专属画像-对外简历源.md"),
+    ]
+    for p in cands:
+        if p.exists():
+            return p
+    for hit in sorted(pathlib.Path("/home/hu/obsidian").rglob("1.1-个人专属画像-对外简历源.md")):
+        return hit
+    return cands[0]
+
+
+SRC_MD = _resolve_src()
 OUT_HTML = pathlib.Path(__file__).resolve().with_name("index.html")
 
 CSS = """:root{
