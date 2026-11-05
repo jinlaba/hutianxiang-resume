@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 一键发布在线简历
-#   1. 用 gen_online.py 生成 index.html（双 tab：财务 BP 版 / 财务经理版）
+#   1. 用 gen_online.py 生成 index.html（单版本；内容与 CSS 自包含于生成器，不依赖 jobs_cat.py）
 #      —— 占位停用：gen_resume.py 是旧版「整篇渲染内部事实库」，会公开内部标注，不要再接回来
 #   2. 提交并推送到 GitHub Pages（token 只在本次命令内使用，不写入磁盘、不进仓库）
 #
@@ -38,7 +38,7 @@ if git diff --cached --quiet; then
   echo "      (内容无变化，跳过提交)"
 else
   git -c user.name="jinlaba" -c user.email="894102027@qq.com" \
-      commit -m "update resume: 在线简历改为双版本（财务BP版 / 财务经理版），手机端优先；去掉全部内部标注"
+      commit -m "update resume: 单版本重建，按 06 事实库定稿（公司规模 4.6 亿、合并报表周期、AI 工具链、EPC 职务）"
 fi
 
 echo "[3/4] 推送"

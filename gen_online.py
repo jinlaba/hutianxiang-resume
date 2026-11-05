@@ -1,48 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-在线简历页生成器（双版本切换：财务BP / 财务经理）
+在线简历页生成器（单版本）
 
-数据源：工作区 resume_engine/jobs_cat.py 的 FIN_BP / FIN_MGR / HIGHLIGHTS_CAT
-——与 PDF 版共用同一份配置，改一处三处同步。
+2026-11-05 重建：按 06 事实库定稿为**单版本**页面，不再有 BP / 财务经理双 tab，
+也不再 import jobs_cat.py / jobs_v2.py（那是 10-27 的 JD 定制 PDF 母版，
+含 06 查无实据的话术，且改它会连带影响 PDF）。
+本文件自包含：内容模板 + CSS 全在 TEMPLATE 里，改内容直接改本文件。
+
+唯一可信源：/home/hu/obsidian/胡多多/1projects/求职/1-我的底稿/1.1-个人专属画像-对外简历源.md
+⚠️ 任何事实性内容（数字、公司、时间、职务）改动前，先回 06 核对；06 之外的事实一律不得写进简历。
 
 用法：python3 gen_online.py
-输出：index.html（同目录）
+输出：index.html（同目录，由 publish.sh 提交推送）
 """
+import datetime
 import pathlib
-import sys
-
-WS = "/home/hu/WorkBuddy/2026-09-10-19-07-12"
-sys.path.insert(0, WS + "/resume_engine")
-sys.path.insert(0, "/home/hu/WorkBuddy/2026-10-19-16-58-42/resume_engine")
-
-from jobs_cat import FIN_BP, FIN_MGR, HIGHLIGHTS_CAT  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().with_name("index.html")
-TODAY = "2026-10"
 
-# 公开页面的 note 改写：内部口径不上外网
-NOTE_MAP = {
-    "工作语言：法语（仅阅读）": "盛世阳光任职期间参与，项目以国内远程支持为主",
-}
-
-EDU = ("周口师范学院", "财务管理 · 本科（全日制）", "2010 - 2014", "学士学位")
-CERTS = [
-    ("中级会计师", "2020"),
-    ("CMA 美国注册管理会计师", "2022"),
-    ("CPA 注册会计师", "专业阶段已过 4 科：会计 / 战略 / 财管 / 税法"),
-]
-
-WORKS = [
-    ("食品电商盈利分析看板", "9 个平台 / 812 个商品 / 6.3 万行 SKU-日 明细",
-     "单品盈亏平衡、推广 ROI 预警、低毛利品类拆解、分平台利润贡献",
-     "https://jinlaba.github.io/Baotao-Profit-Demo/"),
-    ("房产租赁经营分析看板", "7381+ 条房源 / 16 类房源明细",
-     "房源结构透视、租金与空置率关联、分小区分类型经营指标，可下钻单套",
-     "https://jinlaba.github.io/dingding-house-demo/"),
-]
-
-CSS = """
+TEMPLATE = r'''<!DOCTYPE html>
+<html lang='zh-CN'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1.0'>
+<title>胡天祥 · 财务BP／经营分析／财务经理 · 在线简历</title>
+<meta name='description' content='胡天祥，12 年财务全盘管理，财务BP／经营分析／财务经理。经营分析、盈利模型、全面预算、合并报表，SQL / Python / Power BI / AI Agent 工具链。'>
+<style>
 :root{--ink:#1f2733;--navy:#16294a;--navy2:#1f3a66;--accent:#c8a25a;
 --soft:#f3ead6;--line:#e6e9ef;--muted:#5b6675;--bg:#eef1f6;--card:#fff}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -63,7 +47,7 @@ cursor:pointer;letter-spacing:1px;border-bottom:3px solid transparent;transition
 .tab.on{color:#fff;background:var(--navy2);border-bottom-color:var(--accent)}
 .tab span{display:block;font-size:11.5px;font-weight:400;opacity:.6;letter-spacing:0;margin-top:2px}
 .main{background:var(--card);border-radius:0 0 18px 18px;padding:38px 40px 44px;box-shadow:0 10px 40px rgba(20,30,50,.08)}
-.panel{display:none}.panel.on{display:block}
+
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:26px}
 .card{border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:10px;padding:14px 12px;text-align:center;background:#fcfcfd}
 .card b{display:block;font-size:22px;color:var(--navy);letter-spacing:.5px}
@@ -101,140 +85,56 @@ strong{color:var(--navy);font-weight:700}
  .card b{font-size:19px}.tab{font-size:14px}
 }
 @media print{body{background:#fff}.wrap{margin:0;max-width:100%}.main,.hero{box-shadow:none}
- .tabs{display:none}.panel{display:block!important}.panel+.panel{page-break-before:always}}
-"""
+ .panel{display:block!important}}
 
-JS = """
-function go(id,el){
-  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on')});
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});
-  document.getElementById(id).classList.add('on');el.classList.add('on');
-  try{history.replaceState(null,'','#'+id)}catch(e){}
-}
-window.addEventListener('load',function(){
-  var h=location.hash.replace('#','');
-  if(h==='mgr'){var t=document.querySelectorAll('.tab')[1];go('mgr',t)}
-});
-"""
-
-
-def sec_adv(cfg):
-    return "".join(f"<li><strong>{t}</strong>：{d}</li>" for t, d in cfg["adv"])
-
-
-def sec_exp(cfg):
-    out = []
-    for when, co, role, note, bullets in cfg["exp"]:
-        note = NOTE_MAP.get(note, note)
-        n = f"<div class='note'>{note}</div>" if note else ""
-        bl = "".join(f"<li>{b}</li>" for b in bullets)
-        out.append(
-            f"<div class='job'><div class='top'><div><span class='co'>{co}</span>"
-            f"<span class='role'>{role}</span></div><div class='when'>{when}</div></div>"
-            f"{n}<ul>{bl}</ul></div>"
-        )
-    return "".join(out)
-
-
-def sec_proj(cfg):
-    out = []
-    for when, co, role, note, bullets in cfg["proj"]:
-        note = NOTE_MAP.get(note, note)
-        n = f"<div class='note'>{note}</div>" if note else ""
-        bl = "".join(f"<li>{b}</li>" for b in bullets)
-        out.append(
-            f"<div class='job'><div class='top'><div><span class='co'>{co}</span>"
-            f"<span class='role'>{role}</span></div><div class='when'>{when}</div></div>"
-            f"{n}<ul>{bl}</ul></div>"
-        )
-    return "".join(out)
-
-
-def sec_cards(cfg):
-    hs = HIGHLIGHTS_CAT.get(cfg["file"], [])
-    items = "".join(f"<div class='card'><b>{n}</b><i>{d}</i></div>" for n, d in hs)
-    return f"<div class='cards'>{items}</div>"
-
-
-def sec_skill(cfg):
-    return "".join(f"<div class='skill'><b>{k}</b><div>{v}</div></div>" for k, v in cfg["skills"])
-
-
-def sec_work():
-    items = "".join(
-        f"<div class='wkitem'><b>{t}</b><p>{d}｜{c}</p><a href='{u}' target='_blank'>{u}</a></div>"
-        for t, d, c, u in WORKS
-    )
-    return f"<div class='wk'>{items}</div>"
-
-
-def edu_block():
-    sch, major, years, deg = EDU
-    certs = "".join(f"<li><strong>{a}</strong>（{b}）</li>" if b and len(b) < 20
-                    else f"<li><strong>{a}</strong>：{b}</li>" for a, b in CERTS)
-    return (f"<div class='edu'><div><b>{sch}</b> ｜ {major} ｜ {deg}</div>"
-            f"<div class='when'>{years}</div></div><ul>{certs}</ul>")
-
-
-def panel(pid, cfg, on):
-    return f"""
-<div class='panel{on}' id='{pid}'>
-  {sec_cards(cfg)}
-  <h2>个人优势</h2>
-  <ul>{sec_adv(cfg)}</ul>
-  <h2>工作经历</h2>
-  {sec_exp(cfg)}
-  <h2>项目经历</h2>
-  {sec_proj(cfg)}
-  <h2>教育背景与资质</h2>
-  {edu_block()}
-  <h2>专业技能</h2>
-  {sec_skill(cfg)}
-  <h2>数据作品（在线可交互）</h2>
-  {sec_work()}
-</div>"""
-
-
-def build():
-    return f"""<!DOCTYPE html>
-<html lang='zh-CN'>
-<head>
-<meta charset='UTF-8'>
-<meta name='viewport' content='width=device-width,initial-scale=1.0'>
-<title>胡天祥 · 财务BP／财务经理 · 在线简历</title>
-<meta name='description' content='胡天祥，12 年财务全盘管理，财务BP／财务经理。经营分析、盈利模型、预算管控、合并报表，SQL/Python/Power BI。'>
-<style>{CSS}</style>
+.tags{margin-top:12px;font-size:13.5px;color:#e8d5a9;letter-spacing:.5px;position:relative;z-index:1}
+</style>
 </head>
 <body>
 <div class='wrap'>
   <div class='hero'>
     <h1>胡天祥</h1>
-    <div class='pos'>财务BP ／ 财务经理 ｜ 长沙 ｜ 12 年财务全盘管理</div>
+    <div class='pos'>财务BP ／ 经营分析负责人 ／ 财务经理 ｜ 长沙 ｜ 12 年财务全盘管理</div>
+    <div class='tags'>业财融合专家 ｜ 数据驱动决策 ｜ AI 财务自动化实战派</div>
     <div class='meta'>
       <span>📱 15674857125</span>
       <span>✉️ 894102027@qq.com</span>
       <span>📍 长沙 · 岳麓区</span>
     </div>
-    <div class='meta'><span>面试可现场打开下方数据作品，均为本人实操搭建</span></div>
-  </div>
-  <div class='tabs'>
-    <div class='tab on' onclick="go('bp',this)">财务 BP 版<span>经营分析 · 盈利模型 · 业财协同</span></div>
-    <div class='tab' onclick="go('mgr',this)">财务经理版<span>全盘账务 · 预算 · 团队</span></div>
   </div>
   <div class='main'>
-    {panel('bp', FIN_BP, ' on')}
-    {panel('mgr', FIN_MGR, '')}
+    <div class='cards'><div class='card'><b>6 万条</b><i>月凭证自动化处理</i></div><div class='card'><b>18 人天 → 1 人天</b><i>凭证全流程人力压缩</i></div><div class='card'><b>2400 条</b><i>月度往来自动勾稽</i></div><div class='card'><b>945 万</b><i>应收压降 60%</i></div><div class='card'><b>30 家</b><i>母子公司合并报表</i></div><div class='card'><b>4.6 亿</b><i>公司整体营业额</i></div></div>
+    <div style='font-size:12px;color:#7a8291;line-height:1.6;margin:-16px 0 22px'>注：4.6 亿为所在公司整体营业额（2026 年截至 11 月累计，公司整体管理口径），非本人业绩；本人负责 15 个独立核算主体的核算与合并、51 个店铺单元往来核对。</div>
+    <h2>个人优势</h2>
+    <ul><li><strong>经营分析与利润核算</strong>：电商项目按平台、店铺、单品三个粒度拆解销售额、商品成本、平台佣金、推广费、退款与快递费，搭建单品盈亏平衡、推广 ROI 预警与低毛利品类毛利拆解看板；管理规模 <span class='num'>9 个平台 / 812 个商品</span>、<span class='num'>6.3 万行</span> SKU-日 级明细。</li><li><strong>盈利模型与利润前移</strong>：快邮期间搭建卡航 / 海运 / 空运多维度专线利润模型，以贡献边际定位亏损专线、优化清关结算方式，整体利润率提升 <span class='num'>7 个百分点</span>；建立专线 / 订单利润预估与收房利润预估机制，把利润测算前移到报价、接单与收房决策环节。</li><li><strong>全盘账务与合并报表</strong>：能独立完成凭证、总账、月终结账到单体与合并报表全流程；完成 <span class='num'>30 家</span>母子公司合并报表（总资产超 <span class='num'>9 亿</span>，编制周期<span class='num'>接近 1 个月 → 最快 3 天</span>）；顶鼎期间每月 <span class='num'>6 万条</span>凭证自动化处理，报表出具效率提升 <span class='num'>40%</span>。</li><li><strong>预算、内控与税务</strong>：从 0 到 1 搭建全面预算体系（制度、模板、授权审批），收入 / 成本 / 费用 / 资金四维预算分解至部门与项目部，建立月度执行分析、差异预警与滚动预测；主导财务管理体系及采购 / 施工 / 收款流程重塑，主体流程零修改通过 ISO9001 认证；综合税负率降低 <span class='num'>18%</span>，取得补贴奖补超 <span class='num'>65 万元</span>。</li><li><strong>数据工具与 AI 应用</strong>：熟练 SQL、Python、Power BI、Power Query、Excel 高级，每月 <span class='num'>6 万条</span>凭证与 <span class='num'>2400 条</span>往来流水的自动化实践；AI 工具链：Codex CLI、Hermes Agent、Claude Code，熟练掌握各 Agent 的部署、配置及多 Agent 协同调度。</li></ul>
+    <h2>工作经历</h2>
+    <div class='job'><div class='top'><div><span class='co'>长沙顶鼎房地产咨询服务有限公司</span><span class='role'>财务BP（兼总账核算）</span></div><div class='when'>2025.07 - 2026.11</div></div><div class='note'>独立作业 + 跨部门协同</div><ul><li>财务数字化转型：每月 <span class='num'>6 万条</span>凭证的清洗、分类、勾稽由 Python + SQL 完成，人力由 <span class='num'>6 人 3 天（18 人天）</span>压缩至 <span class='num'>1 人 1 天</span>主导；系统自动打标异常映射行与未导入凭证（约 <span class='num'>500 条</span>，占比不足 1%），人工仅复核；报表出具效率提升 <span class='num'>40%</span>。</li><li>内部往来核对自动化：覆盖 <span class='num'>51 个店铺单元</span>、归集为 <span class='num'>15 个独立核算主体</span>，每月约 <span class='num'>2400 条</span>内部往来流水与房源交接，用 Python + SQL 自动勾稽并输出差异清单，核对由 1 人 1-2 天压缩至 <span class='num'>1 人 1 小时</span>。</li><li>经营看板与决策支持：搭建房源 / 租金 / 空置率多维经营分析看板，替代按月人工汇总，管理层可下钻至单套房源；独立编制合并报表，建立财务指标预警机制，设计分部门利润责任框架。</li><li>专题分析与预算：自行完成出租率相关性分析（基于 <span class='num'>7381+ 条</span>房源数据），协助完成出租率与租价相关性专题；建立收房利润预估与资金预算，把利润管控前移到收房决策。</li></ul></div><div class='job'><div class='top'><div><span class='co'>快邮供应链管理（长沙）有限公司</span><span class='role'>财务经理</span></div><div class='when'>2024.07 - 2025.07</div></div><div class='note'>带 5 人团队</div><ul><li>信用与应收管控：建立 5 维度客户信用评级（A/B/C/D 分级账期）+ 催收 SOP + 回款率挂钩业务 KPI，应收由 <span class='num'>1568 万</span>压降至 <span class='num'>623 万</span>（压降 <span class='num'>945 万</span>，降幅约 <span class='num'>60%</span>）。</li><li>单元盈利模型：搭建卡航 / 海运 / 空运多维度专线利润模型，引入贡献边际定位亏损专线，辅助业务端调整报价并优化清关结算方式，整体利润率提升 <span class='num'>7 个百分点</span>。</li><li>经营分析与管理报表：按月编制利润表与经营分析，输出人效、客户回访、线路分配及价格、推广投入等建议；按月编制各团队收货方数 / 重量 / 利润报表，配套账期回款率监控；建立专线 / 订单利润预估，把利润管控前移到报价接单环节。</li><li>团队与结账管控：带 5 人核算团队（应收 2 + 应付 3），负责分工、复核与月度结账排期。</li></ul></div><div class='job'><div class='top'><div><span class='co'>神州行者资产管理有限公司</span><span class='role'>财务主管</span></div><div class='when'>2023.05 - 2024.06</div></div><div class='note'>带 2 名会计</div><ul><li>集团报表：完成 <span class='num'>30 家</span>母子公司合并报表（总资产超 <span class='num'>9 亿</span>，编制周期<span class='num'>接近 1 个月 → 最快 3 天</span>），账务标准按上市公司口径执行；配合支撑收购相关融资 <span class='num'>1.8 亿元</span>。</li><li>管理报表与专题测算：面向 <span class='num'>30 家</span>母子公司编制投资回报率（ROI）与偿债能力分析报表；独立完成项目投资回报率与度电成本（LCOE）测算；出具尽调报告识别隐性负债 <span class='num'>3000 万元</span>；编制集团资金预算并输出投融资建议。</li><li>税务与团队：参与集团税务架构设计，通过转移定价与融资模式优化输出合规节税方案；带 2 名会计负责总账与报表分工、复核。</li></ul></div><div class='job'><div class='top'><div><span class='co'>湖南盛世阳光科技有限公司</span><span class='role'>财务经理</span></div><div class='when'>2017.05 - 2023.03</div></div><div class='note'>带 3 人团队 · 6 年</div><ul><li>制度与内控：从 0 建立财务管理制度、核算标准与授权审批流程，主导财务管理体系及采购 / 施工 / 收款流程重塑，主体流程零修改通过 ISO9001 认证；用友 T3 上线实施（任内落地）。</li><li>全面预算与经营分析：从 0 搭建全面预算体系，收入 / 成本 / 费用 / 资金四维分解至部门与项目部，建立月度执行分析、差异预警与滚动预测；建立常态化经营分析（杜邦分析 / 成本差异 / 库存优化）。</li><li>税务、资金与增长：综合税负率降低 <span class='num'>18%</span>，取得补贴奖补超 <span class='num'>65 万元</span>；配合公司取得银行授信 <span class='num'>3000 万元</span>；伴随营收 <span class='num'>500 万 → 5000 万</span>；带 3 人（会计 / 出纳 / 仓管）覆盖核算、资金与存货。</li></ul></div><div class='job'><div class='top'><div><span class='co'>广东湘隆贸易有限公司</span><span class='role'>财务会计</span></div><div class='when'>2014.07 - 2017.04</div></div><div class='note'>电商业务</div><ul><li>搭建电商财务分析模型并实现可视化，每日处理超 <span class='num'>1 万条</span>数据；编制各门店（店铺）利润表与人效分析；月初主导经营复盘会，覆盖人效、推广费用、补单占比、客服、仓储物流、成本占比及链接生命周期。</li></ul></div>
+    <h2>项目经历</h2>
+    <div class='job'><div class='top'><div><span class='co'>衡阳康健轩食品有限公司</span><span class='role'>财务负责人（电商全链路）</span></div><div class='when'>2022.02 - 2024.07</div></div><div class='note'>合伙项目，业余时间投入</div><ul><li>真实利润核算：按平台与单品拆解销售额、平台佣金、推广费与商品成本，输出可直接决策的利润分析，并沉淀为可交互看板（单品盈亏平衡、推广 ROI 预警、低毛利品类毛利拆解、分平台利润贡献）。</li><li>推广 ROI 与复盘：搭建推广费用与销售额联动监控，输出推广 ROI 预警与低毛利品类毛利拆解看板。</li><li>体系沉淀：搭建电商日报与分析模板，覆盖 9 平台全链路数据（<span class='num'>SKU-日 级 6.3 万行</span>），可复用交付；9 个平台的账期、佣金、服务费、退款及对账差异处理均有完整流程经历。</li></ul></div><div class='job'><div class='top'><div><span class='co'>阿尔及利亚 20 亿第纳尔光伏 EPC 项目</span><span class='role'>项目财务负责人</span></div><div class='when'>2018.10 - 2020.04</div></div><div class='note'>盛世阳光任职期间兼任 · 以国内远程支持为主</div><ul><li>可研与投标：主导可研报告财务测算模块（全周期投资估算、现金流预测、敏感性分析），负责投标阶段工程预算与商务报价测算。</li><li>执行与回款：主导应收账款台账管理与催收，按里程碑保障工程款回收，控制资金占用与坏账风险。</li></ul></div>
+    <h2>教育背景与资质</h2>
+    <div class='edu'><div><b>周口师范学院</b> ｜ 财务管理 · 本科（全日制） ｜ 学士学位</div><div class='when'>2010 - 2014</div></div>
+    <ul class='certs'><li><strong>中级会计师</strong>（2020）</li><li><strong>CMA 美国注册管理会计师</strong>（2022）</li><li><strong>CPA 注册会计师</strong>：专业阶段已过 4 科：会计 / 战略 / 财管 / 税法</li></ul>
+    <h2>专业技能</h2>
+    <div class='skill'><b>财务专业</b><div>全盘账务与合并报表、经营分析、全面预算、资金管理、税务筹划、内控建设、团队管理（2-5 人核算团队）</div></div><div class='skill'><b>数据与 AI 工具</b><div>SQL、Python、Excel 高级、Power BI、Power Query；用友 T3（上线实施）；AI 工具链：Codex CLI、Hermes Agent、Claude Code（部署 / 配置 / 多 Agent 协同调度）</div></div><div class='skill'><b>资质</b><div>CPA 专业阶段已过 4 科（会计 / 战略 / 财管 / 税法）、CMA（2022）、中级会计师（2020）</div></div>
+    <h2>数据作品（在线可交互）</h2>
+    <div class='wk'><div class='wkitem'><b>食品电商盈利分析看板</b><p>9 个平台 / 812 个商品 / 6.3 万行 SKU-日 明细｜单品盈亏平衡、推广 ROI 预警、低毛利品类拆解、分平台利润贡献</p><a href='https://jinlaba.github.io/Baotao-Profit-Demo/' target='_blank'>https://jinlaba.github.io/Baotao-Profit-Demo/</a></div><div class='wkitem'><b>房产租赁经营分析看板</b><p>7381+ 条房源 / 16 类房源明细｜房源结构透视、租金与空置率关联、分小区分类型经营指标，可下钻单套</p><a href='https://jinlaba.github.io/dingding-house-demo/' target='_blank'>https://jinlaba.github.io/dingding-house-demo/</a></div></div>
   </div>
-  <div class='foot'>更新于 {TODAY} ｜ 简历内容与本人实际经历一致，可提供任一段的凭证与报表样例（脱敏）</div>
+  <div class='foot'>更新于 {{UPDATED}} ｜ 简历内容与本人实际经历一致，可提供任一段的凭证与报表样例（脱敏）</div>
 </div>
-<script>{JS}</script>
 </body>
 </html>
-"""
+'''
+
+
+def build():
+    """只动态替换页脚月份，其余内容固定，避免无意义的 commit。"""
+    return TEMPLATE.replace("{{UPDATED}}", datetime.date.today().strftime("%Y-%m"))
 
 
 def main():
-    OUT.write_text(build(), encoding="utf-8")
+    html = build()
+    assert "{{UPDATED}}" not in html, "页脚占位符未替换"
+    OUT.write_text(html, encoding="utf-8")
     print(f"[√] 已生成 {OUT}  ({OUT.stat().st_size/1024:.1f} KB)")
 
 
